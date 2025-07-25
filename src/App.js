@@ -25,6 +25,7 @@ function App() {
 	const [isLoggedIn, setIsLoggedIn] = useState(
 		!!sessionStorage.getItem('currentUser')
 	)
+	const [searchQuery, setSearchQuery] = useState('')
 
 	useEffect(() => {
 		axios
@@ -34,12 +35,8 @@ function App() {
 	}, [])
 
 	useEffect(() => {
-		if (isLoggedIn) {
-			socket.connect()
-		}
-		return () => {
-			socket.disconnect()
-		}
+		if (isLoggedIn) socket.connect()
+		return () => socket.disconnect()
 	}, [isLoggedIn])
 
 	useEffect(() => {
@@ -52,12 +49,8 @@ function App() {
 					setMessages(prevMessages => [...prevMessages, message])
 				}
 			}
-
 			socket.on('newMessage', handleNewMessage)
-
-			return () => {
-				socket.off('newMessage', handleNewMessage)
-			}
+			return () => socket.off('newMessage', handleNewMessage)
 		}
 	}, [isLoggedIn, sender, receiver])
 
@@ -75,8 +68,7 @@ function App() {
 	useEffect(() => {
 		const interval = setInterval(() => {
 			axios.get('https://chat-app-server-cp5l.onrender.com/ping')
-		}, 100000) // 100 sekund
-
+		}, 100000)
 		return () => clearInterval(interval)
 	}, [])
 
@@ -126,28 +118,31 @@ function App() {
 		socket.disconnect()
 	}
 
-	const handleSendMessage = () => {
-		if (newMessage.trim() === '' || !sender || !receiver || !isLoggedIn) return
-
-		const messageData = {
-			sender,
-			receiver,
-			content: newMessage,
-		}
-
-		axios
-			.post('https://chat-app-server-cp5l.onrender.com/messages', messageData)
-			.then(() => {
-				socket.emit('sendMessage', messageData) // <-- Realtime yuborish
-				setNewMessage('')
-			})
-			.catch(error => console.error('Error sending message:', error))
-	}
-
 	const handleReceiverChange = value => {
 		setReceiver(value)
 		sessionStorage.setItem('currentReceiver', value)
 	}
+
+	const handleSendMessage = async () => {
+		if (!newMessage.trim() || !sender || !receiver || !isLoggedIn) return
+
+		try {
+			await axios.post('https://chat-app-server-cp5l.onrender.com/messages', {
+				sender,
+				receiver,
+				content: newMessage,
+			})
+			setNewMessage('')
+		} catch (error) {
+			console.error('Error sending message:', error)
+		}
+	}
+
+	const filteredUsers = users.filter(
+		user =>
+			user.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+			user.name !== sender
+	)
 
 	if (!isLoggedIn) {
 		return (
@@ -188,24 +183,29 @@ function App() {
 
 	return (
 		<div className='container'>
-			<h1>Messaging App </h1>
+			<h1>Messaging App</h1>
 			<h2>Profile: {sender}</h2>
 			<button onClick={handleLogout} className='logout-button'>
 				Chiqish
 			</button>
+
+			<input
+				type='text'
+				placeholder='Search user...'
+				value={searchQuery}
+				onChange={e => setSearchQuery(e.target.value)}
+			/>
 
 			<select
 				value={receiver}
 				onChange={e => handleReceiverChange(e.target.value)}
 			>
 				<option value=''>Select user</option>
-				{users
-					.filter(user => user.name !== sender)
-					.map(user => (
-						<option key={user.id} value={user.name}>
-							{user.name}
-						</option>
-					))}
+				{filteredUsers.map(user => (
+					<option key={user.id} value={user.name}>
+						{user.name}
+					</option>
+				))}
 			</select>
 
 			<div className='message-form'>
@@ -227,7 +227,9 @@ function App() {
 						<div className='meta'>
 							{msg.sender} to {msg.receiver}
 						</div>
-						<div className='content'>{msg.content}</div>
+						<div className='content'>
+							<p>{msg.content}</p>
+						</div>
 						<div className='timestamp'>
 							{new Date(msg.createdAt).toLocaleString()}
 						</div>

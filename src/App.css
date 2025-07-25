@@ -96,12 +96,12 @@ button:hover {
 }
 
 .messages::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 .messages::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.3);
-  border-radius: 4px;
+  border-radius: 3px;
 }
 
 .message {
@@ -167,7 +167,7 @@ button:hover {
   }
 
   .messages {
-    gap: 8px;
+    gap: 10px;
   }
 
   .message {

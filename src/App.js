@@ -73,6 +73,14 @@ function App() {
 	}, [sender, receiver, isLoggedIn])
 
 	useEffect(() => {
+		const interval = setInterval(() => {
+			axios.get('https://chat-app-server-cp5l.onrender.com/ping')
+		}, 100000) // 100 sekund
+
+		return () => clearInterval(interval)
+	}, [])
+
+	useEffect(() => {
 		const messagesEnd = document.getElementById('messagesEnd')
 		if (messagesEnd) {
 			messagesEnd.scrollIntoView({ behavior: 'smooth' })
@@ -80,33 +88,29 @@ function App() {
 	}, [messages])
 
 	const handleLogin = () => {
-		const trimmedName = loginName.trim()
-		const trimmedPassword = loginPassword.trim()
 		axios
 			.post('https://chat-app-server-cp5l.onrender.com/login', {
-				name: trimmedName,
-				password: trimmedPassword,
+				name: loginName.trim(),
+				password: loginPassword.trim(),
 			})
 			.then(() => {
-				setSender(trimmedName)
+				setSender(loginName.trim())
 				setIsLoggedIn(true)
-				sessionStorage.setItem('currentUser', trimmedName)
+				sessionStorage.setItem('currentUser', loginName.trim())
 				setError('')
 			})
 			.catch(error => setError(error.response?.data?.error || 'Login failed'))
 	}
 
 	const handleSignup = () => {
-		const trimmedName = signupName.trim()
-		const trimmedPassword = signupPassword.trim()
 		axios
 			.post('https://chat-app-server-cp5l.onrender.com/signup', {
-				name: trimmedName,
-				password: trimmedPassword,
+				name: signupName.trim(),
+				password: signupPassword.trim(),
 			})
 			.then(() => {
-				setLoginName(trimmedName)
-				setLoginPassword(trimmedPassword)
+				setLoginName(signupName.trim())
+				setLoginPassword(signupPassword.trim())
 				handleLogin()
 			})
 			.catch(error => setError(error.response?.data?.error || 'Signup failed'))
@@ -125,13 +129,16 @@ function App() {
 	const handleSendMessage = () => {
 		if (newMessage.trim() === '' || !sender || !receiver || !isLoggedIn) return
 
+		const messageData = {
+			sender,
+			receiver,
+			content: newMessage,
+		}
+
 		axios
-			.post('https://chat-app-server-cp5l.onrender.com/messages', {
-				sender: sender,
-				receiver: receiver,
-				content: newMessage,
-			})
+			.post('https://chat-app-server-cp5l.onrender.com/messages', messageData)
 			.then(() => {
+				socket.emit('sendMessage', messageData) // <-- Realtime yuborish
 				setNewMessage('')
 			})
 			.catch(error => console.error('Error sending message:', error))
@@ -145,7 +152,7 @@ function App() {
 	if (!isLoggedIn) {
 		return (
 			<div className='container'>
-				<h1>Shadowgram Login</h1>
+				<h1>Messaging App</h1>
 				{error && <div className='error'>{error}</div>}
 				<input
 					type='text'
@@ -159,9 +166,9 @@ function App() {
 					value={loginPassword}
 					onChange={e => setLoginPassword(e.target.value)}
 				/>
-				<button onClick={handleLogin}>Login</button>
+				<button onClick={handleLogin}>Kirish</button>
 
-				<h2>Or Signup</h2>
+				<h2>Ro'yxatdan o'tish</h2>
 				<input
 					type='text'
 					placeholder='New Username'
@@ -174,16 +181,17 @@ function App() {
 					value={signupPassword}
 					onChange={e => setSignupPassword(e.target.value)}
 				/>
-				<button onClick={handleSignup}>Signup</button>
+				<button onClick={handleSignup}>Ro'yxatdan o'tish</button>
 			</div>
 		)
 	}
 
 	return (
 		<div className='container'>
-			<h1>Shadowgram Chat - {sender}</h1>
+			<h1>Messaging App </h1>
+			<h2>Profile: {sender}</h2>
 			<button onClick={handleLogout} className='logout-button'>
-				Logout
+				Chiqish
 			</button>
 
 			<select
